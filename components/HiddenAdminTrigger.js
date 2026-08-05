@@ -14,7 +14,7 @@ export default function HiddenAdminTrigger({ children, className }) {
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       countRef.current = 0;
-    }, 700);
+    }, 1200);
 
     if (countRef.current >= 3) {
       countRef.current = 0;
@@ -24,7 +24,11 @@ export default function HiddenAdminTrigger({ children, className }) {
   }
 
   return (
-    <span onClick={handleTap} className={className} style={{ cursor: "default" }}>
+    <span
+      onClick={handleTap}
+      className={`${className} inline-block py-4 px-6 -my-4`}
+      style={{ cursor: "default" }}
+    >
       {children}
     </span>
   );
