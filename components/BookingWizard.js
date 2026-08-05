@@ -354,7 +354,7 @@ export default function BookingWizard() {
               onClick={handleConfirm}
               className="btn-primary"
             >
-              {submitting ? "Confirmando..." : "Confirmar agendamento"}
+              {submitting ? "Enviando..." : "Enviar agendamento"}
             </button>
           </div>
         </div>
@@ -363,14 +363,15 @@ export default function BookingWizard() {
       {step === "confirmado" && (
         <div className="space-y-4 text-center">
           <h2 className="font-title text-2xl text-pink-600 font-bold">
-            Muito obrigada pelo seu agendamento! 💕
+            Recebemos seu agendamento! 💕
           </h2>
           <p className="text-pink-900/80">
             {selectedService?.name} — {formatDateBR(date)} às {selectedSlot}
           </p>
           <p className="text-pink-900/80">
-            Pedimos a gentileza de encaminhar o resumo abaixo para o WhatsApp
-            do estúdio, para confirmarmos tudo certinho:
+            Ele está reservado e aguardando nossa confirmação. Pedimos a
+            gentileza de encaminhar o resumo abaixo para o WhatsApp do
+            estúdio — assim a gente confirma tudo certinho com você:
           </p>
           <a href={whatsappMessage()} target="_blank" rel="noopener noreferrer" className="btn-whatsapp w-full">
             Enviar resumo pelo WhatsApp
