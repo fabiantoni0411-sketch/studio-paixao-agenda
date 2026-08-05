@@ -183,28 +183,38 @@ export default function BookingWizard() {
           <h2 className="font-title text-2xl text-pink-600 font-bold mb-4 text-center">
             Escolha o serviço
           </h2>
-          {services.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => {
-                setSelectedService(s);
-                setBookingType("aplicacao");
-              }}
-              className={`w-full text-left card p-4 border-2 transition ${
-                selectedService?.id === s.id
-                  ? "border-pink-500"
-                  : "border-transparent"
-              }`}
-            >
-              <p className="font-bold text-pink-600">{s.name}</p>
-              <p className="text-sm text-pink-900/70">
-                Aplicação {formatBRL(s.price_application)}
-                {s.price_maintenance
-                  ? ` · Manutenção ${formatBRL(s.price_maintenance)}`
-                  : ""}
-              </p>
-            </button>
-          ))}
+          {services.map((s) => {
+            const isSelected = selectedService?.id === s.id;
+            return (
+              <button
+                key={s.id}
+                onClick={() => {
+                  setSelectedService(s);
+                  setBookingType("aplicacao");
+                }}
+                className={`w-full text-left card p-4 border-2 transition flex items-center justify-between gap-3 ${
+                  isSelected
+                    ? "border-pink-500 bg-pink-100"
+                    : "border-transparent"
+                }`}
+              >
+                <div>
+                  <p className="font-bold text-pink-600">{s.name}</p>
+                  <p className="text-sm text-pink-900/70">
+                    Aplicação {formatBRL(s.price_application)}
+                    {s.price_maintenance
+                      ? ` · Manutenção ${formatBRL(s.price_maintenance)}`
+                      : ""}
+                  </p>
+                </div>
+                {isSelected && (
+                  <span className="flex-shrink-0 w-7 h-7 rounded-full bg-pink-500 text-white flex items-center justify-center text-sm font-bold">
+                    ✓
+                  </span>
+                )}
+              </button>
+            );
+          })}
 
           {selectedService?.price_maintenance ? (
             <div className="flex gap-3 pt-2">
@@ -220,6 +230,15 @@ export default function BookingWizard() {
               />
             </div>
           ) : null}
+
+          {selectedService && (
+            <p className="text-center text-sm font-semibold text-pink-700 bg-pink-50 rounded-xl py-2 px-3">
+              Selecionado: {selectedService.name}
+              {selectedService.price_maintenance
+                ? ` · ${bookingType === "manutencao" ? "Manutenção" : "Aplicação"}`
+                : ""}
+            </p>
+          )}
 
           <button
             disabled={!selectedService}
