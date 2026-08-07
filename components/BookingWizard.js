@@ -51,12 +51,12 @@ export default function BookingWizard() {
 
     const weekday = new Date(chosenDate + "T12:00:00").getDay();
 
-    const { data: wh } = await supabase
+    const { data: whList } = await supabase
       .from("working_hours")
       .select("*")
       .eq("weekday", weekday)
       .eq("active", true)
-      .maybeSingle();
+      .order("start_time", { ascending: true });
 
     const { data: blocked } = await supabase
       .from("blocked_dates")
@@ -70,17 +70,22 @@ export default function BookingWizard() {
       return;
     }
 
-    if (!wh) {
-      setSlotsMessage("Não há atendimento nesse dia da semana.");
-      setSlotsLoading(false);
-      return;
+    let windows = [];
+    if (blocked && !blocked.all_day && blocked.start_time && blocked.end_time) {
+      windows = [
+        { start: blocked.start_time.slice(0, 5), end: blocked.end_time.slice(0, 5) },
+      ];
+    } else if (whList && whList.length > 0) {
+      windows = whList.map((w) => ({
+        start: w.start_time.slice(0, 5),
+        end: w.end_time.slice(0, 5),
+      }));
     }
 
-    let workStart = wh.start_time.slice(0, 5);
-    let workEnd = wh.end_time.slice(0, 5);
-    if (blocked && !blocked.all_day && blocked.start_time && blocked.end_time) {
-      workStart = blocked.start_time.slice(0, 5);
-      workEnd = blocked.end_time.slice(0, 5);
+    if (windows.length === 0) {
+      setSlotsMessage("Não há atendimento nesse dia.");
+      setSlotsLoading(false);
+      return;
     }
 
     const { data: booked } = await supabase.rpc("get_booked_slots", {
@@ -98,14 +103,19 @@ export default function BookingWizard() {
         ? new Date().getHours() * 60 + new Date().getMinutes()
         : null;
 
-    const available = generateSlots(
-      workStart,
-      workEnd,
-      selectedService.duration_minutes,
-      bookedRanges,
-      15,
-      nowMinutes
-    );
+    let available = [];
+    for (const w of windows) {
+      const slotsForWindow = generateSlots(
+        w.start,
+        w.end,
+        selectedService.duration_minutes,
+        bookedRanges,
+        15,
+        nowMinutes
+      );
+      available = available.concat(slotsForWindow);
+    }
+    available = Array.from(new Set(available)).sort();
 
     if (available.length === 0) {
       setSlotsMessage("Não há mais horários livres nesse dia. Tente outra data.");
