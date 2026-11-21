@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 
 const LINKS = [
   { href: "/admin/dashboard", label: "Agendamentos" },
+  { href: "/admin/clientes", label: "Clientes do mês" },
   { href: "/admin/horarios", label: "Horários" },
   { href: "/admin/servicos", label: "Serviços" },
   { href: "/admin/galeria", label: "Galeria" },
@@ -20,7 +21,7 @@ export default function AdminSidebar() {
   }
 
   return (
-    <aside className="md:w-56 bg-white border-b md:border-b-0 md:border-r border-pink-100 p-4 flex md:flex-col gap-2">
+    <aside className="md:w-56 bg-white border-b md:border-b-0 md:border-r border-pink-100 p-4 flex md:flex-col gap-2 overflow-x-auto">
       <p className="font-title text-pink-600 font-bold text-lg mb-2 hidden md:block">
         Studio Paixão
       </p>
@@ -28,14 +29,14 @@ export default function AdminSidebar() {
         <Link
           key={l.href}
           href={l.href}
-          className="px-3 py-2 rounded-lg text-sm font-semibold text-pink-700 hover:bg-pink-50"
+          className="px-3 py-2 rounded-lg text-sm font-semibold text-pink-700 hover:bg-pink-50 whitespace-nowrap"
         >
           {l.label}
         </Link>
       ))}
       <button
         onClick={handleLogout}
-        className="mt-auto px-3 py-2 rounded-lg text-sm font-semibold text-left text-red-500 hover:bg-red-50"
+        className="mt-auto px-3 py-2 rounded-lg text-sm font-semibold text-left text-red-500 hover:bg-red-50 whitespace-nowrap"
       >
         Sair
       </button>
