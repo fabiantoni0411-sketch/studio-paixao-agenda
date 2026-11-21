@@ -5,28 +5,53 @@ import AdminGuard from "@/components/AdminGuard";
 import { supabase } from "@/lib/supabaseClient";
 import { formatBRL, formatDateBR } from "@/lib/constants";
 
-export default function DashboardPage() {
-  return (
-    <AdminGuard>
-      <MonthSummary />
-      <PendingBookings />
-      <ConfirmedBookings />
-    </AdminGuard>
-  );
+function localDateStr(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 function getMonthRange() {
   const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1)
-    .toISOString()
-    .slice(0, 10);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-    .toISOString()
-    .slice(0, 10);
+  const start = localDateStr(new Date(now.getFullYear(), now.getMonth(), 1));
+  const end = localDateStr(new Date(now.getFullYear(), now.getMonth() + 1, 0));
   return { start, end };
 }
 
-function MonthSummary() {
+export default function DashboardPage() {
+  const [refreshKey, setRefreshKey] = useState(0);
+  const refresh = () => setRefreshKey((k) => k + 1);
+
+  return (
+    <AdminGuard>
+      <MonthSummary refreshKey={refreshKey} />
+      <PendingBookings onChange={refresh} refreshKey={refreshKey} />
+      <ToComplete onChange={refresh} refreshKey={refreshKey} />
+      <UpcomingBookings onChange={refresh} refreshKey={refreshKey} />
+    </AdminGuard>
+  );
+}
+
+function BookingInfo({ b }) {
+  return (
+    <div>
+      <p className="font-bold text-pink-600">
+        {formatDateBR(b.date)} às {b.start_time.slice(0, 5)}
+      </p>
+      <p className="text-sm text-pink-900/80">
+        {b.service_name} ({b.booking_type === "manutencao" ? "Manutenção" : "Aplicação"}) —{" "}
+        {formatBRL(b.price)}
+        {b.payment_method ? ` · ${b.payment_method}` : ""}
+      </p>
+      <p className="text-sm text-pink-900/70">
+        {b.client_name} · {b.client_phone}
+      </p>
+    </div>
+  );
+}
+
+function MonthSummary({ refreshKey }) {
   const [total, setTotal] = useState(0);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -37,7 +62,7 @@ function MonthSummary() {
       const { data } = await supabase
         .from("bookings")
         .select("price")
-        .eq("status", "confirmado")
+        .eq("status", "concluido")
         .gte("date", start)
         .lte("date", end);
       const rows = data || [];
@@ -46,7 +71,7 @@ function MonthSummary() {
       setLoading(false);
     }
     load();
-  }, []);
+  }, [refreshKey]);
 
   const monthName = new Date().toLocaleDateString("pt-BR", {
     month: "long",
@@ -64,7 +89,7 @@ function MonthSummary() {
         <div className="flex gap-8">
           <div>
             <p className="text-2xl font-bold text-pink-600">{count}</p>
-            <p className="text-xs text-pink-900/70">agendamentos confirmados</p>
+            <p className="text-xs text-pink-900/70">serviços concluídos</p>
           </div>
           <div>
             <p className="text-2xl font-bold text-pink-600">{formatBRL(total)}</p>
@@ -76,33 +101,30 @@ function MonthSummary() {
   );
 }
 
-function PendingBookings() {
+function PendingBookings({ onChange, refreshKey }) {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  async function load() {
-    setLoading(true);
-    const { data } = await supabase
-      .from("bookings")
-      .select("*")
-      .eq("status", "pendente")
-      .order("date", { ascending: true })
-      .order("start_time", { ascending: true });
-    setBookings(data || []);
-    setLoading(false);
-  }
-
   useEffect(() => {
+    async function load() {
+      const { data } = await supabase
+        .from("bookings")
+        .select("*")
+        .eq("status", "pendente")
+        .order("date", { ascending: true })
+        .order("start_time", { ascending: true });
+      setBookings(data || []);
+      setLoading(false);
+    }
     load();
-  }, []);
+  }, [refreshKey]);
 
   async function respond(id, status) {
     await supabase.from("bookings").update({ status }).eq("id", id);
-    load();
+    onChange();
   }
 
-  if (loading) return null;
-  if (bookings.length === 0) return null;
+  if (loading || bookings.length === 0) return null;
 
   return (
     <div className="mb-10">
@@ -115,19 +137,7 @@ function PendingBookings() {
             key={b.id}
             className="card p-4 flex flex-wrap items-center justify-between gap-3 border-2 border-pink-300"
           >
-            <div>
-              <p className="font-bold text-pink-600">
-                {formatDateBR(b.date)} às {b.start_time.slice(0, 5)}
-              </p>
-              <p className="text-sm text-pink-900/80">
-                {b.service_name} ({b.booking_type === "manutencao" ? "Manutenção" : "Aplicação"}) —{" "}
-                {formatBRL(b.price)}
-                {b.payment_method ? ` · ${b.payment_method}` : ""}
-              </p>
-              <p className="text-sm text-pink-900/70">
-                {b.client_name} · {b.client_phone}
-              </p>
-            </div>
+            <BookingInfo b={b} />
             <div className="flex gap-2">
               <button
                 onClick={() => respond(b.id, "confirmado")}
@@ -149,32 +159,93 @@ function PendingBookings() {
   );
 }
 
-function ConfirmedBookings() {
+function ToComplete({ onChange, refreshKey }) {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const todayStr = new Date().toISOString().slice(0, 10);
-
-  async function load() {
-    setLoading(true);
-    const { data } = await supabase
-      .from("bookings")
-      .select("*")
-      .eq("status", "confirmado")
-      .gte("date", todayStr)
-      .order("date", { ascending: true })
-      .order("start_time", { ascending: true });
-    setBookings(data || []);
-    setLoading(false);
-  }
 
   useEffect(() => {
+    async function load() {
+      const { data } = await supabase
+        .from("bookings")
+        .select("*")
+        .eq("status", "confirmado")
+        .lte("date", localDateStr())
+        .order("date", { ascending: true })
+        .order("start_time", { ascending: true });
+      setBookings(data || []);
+      setLoading(false);
+    }
     load();
-  }, []);
+  }, [refreshKey]);
+
+  async function setStatus(id, status) {
+    if (status === "cancelado" && !confirm("Cancelar este agendamento?")) return;
+    await supabase.from("bookings").update({ status }).eq("id", id);
+    onChange();
+  }
+
+  if (loading) return null;
+
+  return (
+    <div className="mb-10">
+      <h1 className="font-title text-2xl text-pink-600 font-bold mb-1">
+        Atendimentos de hoje e anteriores
+      </h1>
+      <p className="text-sm text-pink-900/70 mb-4">
+        Ao terminar o atendimento, toque em &quot;Concluído com sucesso&quot; para
+        ele entrar no resumo do mês.
+      </p>
+      {bookings.length === 0 && (
+        <p className="text-pink-700">Nenhum atendimento para concluir agora.</p>
+      )}
+      <div className="grid gap-3">
+        {bookings.map((b) => (
+          <div key={b.id} className="card p-4 flex flex-wrap items-center justify-between gap-3">
+            <BookingInfo b={b} />
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setStatus(b.id, "concluido")}
+                className="text-sm font-semibold text-white bg-green-600 hover:bg-green-700 rounded-full px-4 py-2"
+              >
+                Concluído com sucesso
+              </button>
+              <button
+                onClick={() => setStatus(b.id, "cancelado")}
+                className="text-sm font-semibold text-red-500 hover:underline"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function UpcomingBookings({ onChange, refreshKey }) {
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase
+        .from("bookings")
+        .select("*")
+        .eq("status", "confirmado")
+        .gt("date", localDateStr())
+        .order("date", { ascending: true })
+        .order("start_time", { ascending: true });
+      setBookings(data || []);
+      setLoading(false);
+    }
+    load();
+  }, [refreshKey]);
 
   async function cancelBooking(id) {
     if (!confirm("Cancelar este agendamento?")) return;
     await supabase.from("bookings").update({ status: "cancelado" }).eq("id", id);
-    load();
+    onChange();
   }
 
   if (loading) return <p className="text-pink-700">Carregando agendamentos...</p>;
@@ -185,24 +256,12 @@ function ConfirmedBookings() {
         Próximos agendamentos confirmados
       </h1>
       {bookings.length === 0 && (
-        <p className="text-pink-700">Nenhum agendamento confirmado por enquanto.</p>
+        <p className="text-pink-700">Nenhum agendamento futuro confirmado.</p>
       )}
       <div className="grid gap-3">
         {bookings.map((b) => (
           <div key={b.id} className="card p-4 flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="font-bold text-pink-600">
-                {formatDateBR(b.date)} às {b.start_time.slice(0, 5)}
-              </p>
-              <p className="text-sm text-pink-900/80">
-                {b.service_name} ({b.booking_type === "manutencao" ? "Manutenção" : "Aplicação"}) —{" "}
-                {formatBRL(b.price)}
-                {b.payment_method ? ` · ${b.payment_method}` : ""}
-              </p>
-              <p className="text-sm text-pink-900/70">
-                {b.client_name} · {b.client_phone}
-              </p>
-            </div>
+            <BookingInfo b={b} />
             <button
               onClick={() => cancelBooking(b.id)}
               className="text-sm font-semibold text-red-500 hover:underline"
