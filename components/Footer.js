@@ -26,7 +26,7 @@ export default function Footer() {
         <HiddenAdminTrigger className="text-xs text-pink-700/70 mt-4 select-none">
           © {new Date().getFullYear()} Studio Paixão — Cílios &amp; Sobrancelhas
         </HiddenAdminTrigger>
-        <p className="text-xs text-pink-700/50">Desenvolvido por Faby Bassitii</p>
+        <p className="text-xs text-pink-700/50">Desenvolvido por Faby Bassitti</p>
       </div>
     </footer>
   );
